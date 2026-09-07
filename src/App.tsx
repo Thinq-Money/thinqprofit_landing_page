@@ -24,17 +24,46 @@ import Footer from './components/sections/Footer'
  */
 const TermsPage = lazy(() => import('./components/pages/TermsPage'))
 
+/**
+ * Every path this app answers. Anything else is a typo, a stale link or a probe.
+ *
+ * The host cannot make this distinction for us. CloudFront answers 403 and 404
+ * with index.html at status 200 (DEPLOY.md), which is what lets /terms work at
+ * all — but it means EVERY path returns the app, so /qwerty loaded the homepage
+ * and simply kept `/qwerty` in the address bar. This list is the only place that
+ * knows which of those paths are real.
+ */
+const KNOWN_PATHS = new Set(['/', '/terms'])
+
 export default function App() {
   const [route, setRoute] = useState('home')
 
   useEffect(() => {
     const handleLocationChange = () => {
-      if (typeof window !== 'undefined') {
-        if (window.location.pathname === '/terms' || window.location.hash === '#terms') {
-          setRoute('terms')
-        } else {
-          setRoute('home')
-        }
+      if (typeof window === 'undefined') return
+
+      /*
+       * An unknown path becomes the homepage, URL included.
+       *
+       * `replaceState` rather than `pushState`: pushing would leave the dead URL
+       * one Back press away, and pressing Back would land the reader on it again
+       * and redirect them forward — a trap they cannot escape with the Back
+       * button. Replacing drops it from history entirely.
+       *
+       * It also fires no navigation event, so this cannot re-enter itself; and
+       * it runs before the canonical and page-view effects below, which read the
+       * location after this has corrected it.
+       */
+      if (!KNOWN_PATHS.has(window.location.pathname)) {
+        window.history.replaceState(null, '', '/')
+        setRoute('home')
+        return
+      }
+
+      if (window.location.pathname === '/terms' || window.location.hash === '#terms') {
+        setRoute('terms')
+      } else {
+        setRoute('home')
       }
     }
 
