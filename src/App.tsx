@@ -24,6 +24,13 @@ import Footer from './components/sections/Footer'
  */
 const TermsPage = lazy(() => import('./components/pages/TermsPage'))
 
+/*
+ * Split out for the same reason, and safe for the same reason: `route` starts
+ * at 'home' on every path, so /blog/ is never part of the prerendered HTML and
+ * lazy-loading it cannot cause a hydration mismatch.
+ */
+const BlogPage = lazy(() => import('./components/pages/BlogPage'))
+
 /**
  * Every path this app answers. Anything else is a typo, a stale link or a probe.
  *
@@ -33,7 +40,18 @@ const TermsPage = lazy(() => import('./components/pages/TermsPage'))
  * and simply kept `/qwerty` in the address bar. This list is the only place that
  * knows which of those paths are real.
  */
-const KNOWN_PATHS = new Set(['/', '/terms'])
+const KNOWN_PATHS = new Set(['/', '/terms', '/blog', '/blog/'])
+
+/**
+ * The blog index, in its canonical trailing-slash form.
+ *
+ * Both spellings are admitted above and `/blog` is rewritten to this one, so
+ * there is a single URL for the page rather than two that a crawler would have
+ * to reconcile. It is the only /blog path that exists: /blog/anything is not in
+ * the set, so it takes the undefined-route fallback like any other dead path.
+ * An article slug becomes reachable only when it is added there deliberately.
+ */
+const BLOG_PATH = '/blog/'
 
 export default function App() {
   const [route, setRoute] = useState('home')
@@ -57,6 +75,19 @@ export default function App() {
       if (!KNOWN_PATHS.has(window.location.pathname)) {
         window.history.replaceState(null, '', '/')
         setRoute('home')
+        return
+      }
+
+      /*
+       * Normalise `/blog` to `/blog/` before resolving, so the sitemap entry,
+       * the canonical below and the address bar all name the same URL. Same
+       * replaceState reasoning as above: no history entry, no navigation event.
+       */
+      if (window.location.pathname === '/blog') {
+        window.history.replaceState(null, '', BLOG_PATH)
+      }
+      if (window.location.pathname === BLOG_PATH) {
+        setRoute('blog')
         return
       }
 
@@ -98,7 +129,9 @@ export default function App() {
   useEffect(() => {
     const link = document.querySelector<HTMLLinkElement>('link[rel="canonical"]')
     if (!link) return
-    link.href = route === 'terms' ? 'https://thinq.co/terms' : 'https://thinq.co/'
+    if (route === 'terms') link.href = 'https://thinq.co/terms'
+    else if (route === 'blog') link.href = `https://thinq.co${BLOG_PATH}`
+    else link.href = 'https://thinq.co/'
   }, [route])
 
   /*
@@ -129,6 +162,14 @@ export default function App() {
     return (
       <Suspense fallback={null}>
         <TermsPage />
+      </Suspense>
+    )
+  }
+
+  if (route === 'blog') {
+    return (
+      <Suspense fallback={null}>
+        <BlogPage />
       </Suspense>
     )
   }

@@ -1,22 +1,27 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!--
-  The complete set of public routes. App.tsx resolves exactly two: the homepage,
-  and /terms (which it also accepts as the #terms hash — the same page, so it is
-  not listed twice). Everything else the site answers is either an asset or a
-  path under /api/, and neither belongs in a sitemap.
+  The sitemap INDEX. It lists sitemaps, never URLs.
 
-  No <lastmod>. Google ignores the field unless a site keeps it consistently
-  accurate, and a date hardcoded here would start rotting the day it was
-  written; a wrong lastmod is worse than an absent one.
+  This file used to be a flat <urlset> naming all three public routes. It is an
+  index now so the blog can grow without touching the pages list: articles are
+  appended to blog-sitemap.xml alone, and the two files can be regenerated,
+  cached and re-crawled independently of each other. The URL declared in
+  robots.txt is this file, and it stays this file — a crawler follows the index
+  down to the children on its own, so nothing else needs to be advertised.
 
-  <changefreq> and <priority> are likewise omitted — Google has not used either
-  for years, and stating them would only add noise.
+  Adding a child sitemap means adding a <sitemap> entry here. Adding a page or
+  an article means editing the child, not this file.
+
+  No <lastmod>. It is permitted on an index entry and would tell a crawler which
+  child changed, but only while it is kept accurate by hand; a date that stops
+  being true is worse than an absent one, and nothing here writes it
+  automatically.
 -->
-<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
-  <url>
-    <loc>https://thinq.co/</loc>
-  </url>
-  <url>
-    <loc>https://thinq.co/terms</loc>
-  </url>
-</urlset>
+<sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <sitemap>
+    <loc>https://thinq.co/pages-sitemap.xml</loc>
+  </sitemap>
+  <sitemap>
+    <loc>https://thinq.co/blog-sitemap.xml</loc>
+  </sitemap>
+</sitemapindex>

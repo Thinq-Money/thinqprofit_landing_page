@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  The site's fixed pages. Listed from sitemap.xml, which is the index.
+
+  App.tsx resolves exactly these two as pages: the homepage and /terms. /terms is
+  also reachable as the #terms hash, but that is the same document rather than a
+  second URL, so it is not listed twice. /blog/ lives in blog-sitemap.xml instead
+  — not because it is a different kind of page, but because everything that will
+  ever be added beside it is an article.
+
+  Everything else the site answers is an asset or a path under /api/, and neither
+  belongs in a sitemap. Nothing that redirects belongs here either: App.tsx sends
+  every unrecognised path back to the homepage, so listing one would advertise a
+  URL that answers as a different one.
+
+  No <lastmod>, <changefreq> or <priority>. Google ignores the last two entirely
+  and discounts the first unless a site keeps it consistently accurate; a
+  hardcoded date starts rotting the day it is written.
+-->
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url>
+    <loc>https://thinq.co/</loc>
+  </url>
+  <url>
+    <loc>https://thinq.co/terms</loc>
+  </url>
+</urlset>
