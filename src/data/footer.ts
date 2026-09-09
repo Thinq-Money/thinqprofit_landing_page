@@ -75,12 +75,21 @@ export const registrationDetails: RegistrationDetail[] = [
     value:
       'Stock broking: complaints@moneylogix.in\nDepository participant: bogrievances@moneylogix.in\nSEBI SCORES and the SMART ODR portal are linked below.',
   },
-  {
-    label: 'Risk Disclosure — Equity Derivatives',
-    value:
-      'RISK DISCLOSURES ON DERIVATIVES:\n• 9 out of 10 individual traders in equity Futures and Options Segment, incurred net losses.\n• On an average, loss makers registered net trading loss close to ₹ 50,000.\n• Over and above the net trading losses incurred, loss makers expended an additional 28% of net trading losses as transaction costs.\n• Those making net trading profits, incurred between 15% to 50% of such profits as transaction cost.\n\nSource: SEBI study dated January 25, 2023 on "Analysis of Profit and Loss of Individual Traders dealing in equity Futures and Options (F&O) Segment".',
-    isPlaceholder: false,
-  },
+  /*
+   * The SEBI Annexure-I risk disclosure is NOT listed here, deliberately.
+   *
+   * It used to be, and the footer printed it twice: once in this table and again
+   * in the Annexure-I box further down (Footer.tsx). Every other entry in this
+   * list is a registration fact — entity, SEBI number, office, compliance
+   * officer, nodal account, grievance route — and the disclosure is not one of
+   * those; it is a prescribed statement with a prescribed format.
+   *
+   * The copy that remains is the boxed one, which is the fuller of the two: it
+   * carries the "SEBI Annexure-I" label and the complete source citation
+   * including the FY 2021-22 basis, which the version here omitted. The
+   * disclosure is still on the page in its entirety — only the second, shorter
+   * rendering is gone.
+   */
 ]
 
 export const brandOwnershipStatement =
