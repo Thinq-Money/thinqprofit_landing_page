@@ -72,7 +72,17 @@ export default function Navbar() {
           <div className={`flex ${BAR_HEIGHT} items-center justify-between gap-2`}>
             {/* §2.1 wordmark — mark to the left of the text lockup */}
             <a
-              href="#main"
+              /*
+               * The site root, not the `#main` anchor this used to carry.
+               *
+               * The lockup is labelled "Thinq home" and is read as the way back
+               * to the homepage, but `#main` made it an in-page jump: it left
+               * `/#main` in the address bar and, from anywhere other than the
+               * top, behaved like a second skip link. The real skip link is the
+               * one in App.tsx, which still points at `#main` and still needs
+               * the `<main id="main">` target — neither is touched.
+               */
+              href="/"
               aria-label={wordmarkAlt}
               /* `lockup` is the hover target for the mark's thinking animation —
                  see index.css. It sits on the anchor rather than on the mark so
