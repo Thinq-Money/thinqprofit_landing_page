@@ -1,5 +1,5 @@
 import { useState, useEffect, lazy, Suspense } from 'react'
-import { trackPageView } from './lib/analytics'
+import { trackPageView, observeHomeSections } from './lib/analytics'
 import Navbar from './components/sections/Navbar'
 import Hero from './components/sections/Hero'
 import TheGap from './components/sections/TheGap'
@@ -53,10 +53,41 @@ const KNOWN_PATHS = new Set(['/', '/terms', '/blog', '/blog/'])
  */
 const BLOG_PATH = '/blog/'
 
+/**
+ * A distinct document title per route.
+ *
+ * Analytics, not decoration: GA4's Pages and screens report groups by "Page
+ * title and screen class" by default, and index.html ships one <title> for
+ * every route — so all three collapsed into a single row. The homepage keeps
+ * the exact string index.html already carries, so nothing about it changes.
+ */
+const ROUTE_TITLES: Record<string, string> = {
+  home: 'Thinq',
+  terms: 'Thinq — Terms',
+  blog: 'Thinq — Blog',
+}
+
 export default function App() {
   const [route, setRoute] = useState('home')
 
   useEffect(() => {
+    /*
+     * Resolves the route AND the title together.
+     *
+     * The title has to be set here rather than in an effect keyed on `route`,
+     * and the reason is an ordering trap worth spelling out. `route` starts at
+     * 'home' on every path, so arriving on /terms renders twice: the page view
+     * is reported in the FIRST commit, and a title effect keyed on `route`
+     * would only correct the title in the second — by which point the page view
+     * has already been sent, and correctly suppressed as a duplicate. Every
+     * /terms and /blog/ view was reported as "Thinq". Setting it at the moment
+     * the path is resolved puts it in place before the page view reads it.
+     */
+    const applyRoute = (next: string) => {
+      document.title = ROUTE_TITLES[next] ?? ROUTE_TITLES.home
+      setRoute(next)
+    }
+
     const handleLocationChange = () => {
       if (typeof window === 'undefined') return
 
@@ -74,7 +105,7 @@ export default function App() {
        */
       if (!KNOWN_PATHS.has(window.location.pathname)) {
         window.history.replaceState(null, '', '/')
-        setRoute('home')
+        applyRoute('home')
         return
       }
 
@@ -87,14 +118,14 @@ export default function App() {
         window.history.replaceState(null, '', BLOG_PATH)
       }
       if (window.location.pathname === BLOG_PATH) {
-        setRoute('blog')
+        applyRoute('blog')
         return
       }
 
       if (window.location.pathname === '/terms' || window.location.hash === '#terms') {
-        setRoute('terms')
+        applyRoute('terms')
       } else {
-        setRoute('home')
+        applyRoute('home')
       }
     }
 
@@ -150,6 +181,20 @@ export default function App() {
    */
   useEffect(() => {
     trackPageView()
+  }, [route])
+
+  /*
+   * Reports each homepage section the first time it is seen.
+   *
+   * Set up here rather than inside the five section components: they already
+   * carry the ids the observer needs (#hero, #the-gap, #capabilities, #agentic,
+   * #footer), so this reads the markup as it stands and none of those files is
+   * touched. Re-running on `route` means a return to the homepage observes the
+   * freshly mounted sections and reports them again for that page view.
+   */
+  useEffect(() => {
+    if (route !== 'home') return
+    return observeHomeSections()
   }, [route])
 
   if (route === 'terms') {

@@ -3,10 +3,24 @@ import Container from '../ui/Container'
 import Button from '../ui/Button'
 import OtpModal from '../ui/OtpModal'
 import type { SendOtpResult } from '../../lib/authService'
+import {
+  trackCtaClick,
+  trackSignupStarted,
+  endSignupJourney,
+  type CtaLocation,
+} from '../../lib/analytics'
 import { hero } from '../../data/hero'
 import MediaBackdrop from '../ui/MediaBackdrop'
 import { lqipFor } from '../../data/lqip'
 import { MEDIA_DEADLINE_MS } from '../../hooks/useMediaGate'
+
+/*
+ * Which control opened the waitlist. Named constants rather than inline strings
+ * so the two call sites cannot drift into two different spellings and split one
+ * dimension into two rows in GA4.
+ */
+const HERO_CTA: CtaLocation = 'hero'
+const NAVBAR_CTA: CtaLocation = 'navbar'
 
 /** Preloaded in index.html — the one piece of media that races the page. */
 const HERO_POSTER = '/clips/hero-backdrop-poster.webp'
@@ -122,6 +136,10 @@ export default function Hero() {
 
   useEffect(() => {
     const handleOpenModal = () => {
+      // Analytics only — reported after the refusal above, so a click that opens
+      // nothing is not counted as the start of a journey.
+      trackCtaClick(NAVBAR_CTA)
+      trackSignupStarted(NAVBAR_CTA)
       setAttempt(null)
       setIsOtpOpen(true)
     }
@@ -143,8 +161,17 @@ export default function Hero() {
         attempt={attempt}
         onAttempt={setAttempt}
         onPhoneChange={setPhone}
-        onClose={() => setIsOtpOpen(false)}
+        onClose={() => {
+          // Closes the analytics journey without reporting anything: an
+          // abandoned signup is measured by the absence of the later funnel
+          // steps, and reopening then counts as a genuine new attempt.
+          endSignupJourney()
+          setIsOtpOpen(false)
+        }}
         onSuccess={() => {
+          // The funnel events fired in OtpModal the moment the server answered.
+          // This only closes the journey so a later, separate signup is counted.
+          endSignupJourney()
           setIsOtpOpen(false)
           setAttempt(null)
         }}
@@ -250,6 +277,8 @@ export default function Hero() {
                 <Button
                   type="button"
                   onClick={() => {
+                    trackCtaClick(HERO_CTA)
+                    trackSignupStarted(HERO_CTA)
                     setAttempt(null)
                     setIsOtpOpen(true)
                   }}

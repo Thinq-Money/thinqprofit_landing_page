@@ -12,6 +12,7 @@ import {
   verifyOtp,
   type SendOtpResult,
 } from '../../lib/authService'
+import { trackOtpRequested, trackOtpVerified, trackSignupCompleted } from '../../lib/analytics'
 
 /** How often the two deadlines are re-read. */
 const TICK_MS = 500
@@ -287,6 +288,15 @@ export default function OtpModal({
 
     try {
       const result = await verifyOtp({ attemptId: attempt.attemptId, code: codeToVerify })
+      /*
+       * Analytics, inside the try and after the await — so a rejected code
+       * throws past this and reports nothing. `signup_completed` is the
+       * narrower of the two: it fires only when the outcome is REGISTERED,
+       * because SIGNED_IN means an existing member returned rather than a new
+       * account being created. See src/lib/analytics.ts.
+       */
+      trackOtpVerified(result.outcome)
+      trackSignupCompleted(result.outcome)
       setOutcome(result.outcome)
       setIsVerified(true)
     } catch (err) {
@@ -311,6 +321,10 @@ export default function OtpModal({
     setIsSendingPhone(true)
     try {
       const started = await sendOtp({ value: phone })
+      // Reported only after the server accepted the request. handleResend hits
+      // the same endpoint and is deliberately NOT instrumented — it is the same
+      // reader asking again for the same step, not a new one.
+      trackOtpRequested()
       onAttempt(started)
       setOtp(['', '', '', '', '', ''])
       setTimeout(() => {
