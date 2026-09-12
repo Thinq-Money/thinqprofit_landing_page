@@ -1,27 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!--
-  The sitemap INDEX. It lists sitemaps, never URLs.
-
-  This file used to be a flat <urlset> naming all three public routes. It is an
-  index now so the blog can grow without touching the pages list: articles are
-  appended to blog-sitemap.xml alone, and the two files can be regenerated,
-  cached and re-crawled independently of each other. The URL declared in
-  robots.txt is this file, and it stays this file — a crawler follows the index
-  down to the children on its own, so nothing else needs to be advertised.
-
-  Adding a child sitemap means adding a <sitemap> entry here. Adding a page or
-  an article means editing the child, not this file.
-
-  No <lastmod>. It is permitted on an index entry and would tell a crawler which
-  child changed, but only while it is kept accurate by hand; a date that stops
-  being true is worse than an absent one, and nothing here writes it
-  automatically.
--->
 <sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <sitemap>
     <loc>https://thinq.co/pages-sitemap.xml</loc>
   </sitemap>
   <sitemap>
-    <loc>https://thinq.co/blog-sitemap.xml</loc>
+    <loc>https://thinq.co/blog/sitemap.xml</loc>
   </sitemap>
 </sitemapindex>
