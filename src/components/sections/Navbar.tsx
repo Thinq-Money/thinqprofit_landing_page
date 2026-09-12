@@ -132,12 +132,25 @@ export default function Navbar() {
                 scrolled away — two live "Join the waitlist" controls on screen at
                 once is one ask presented as two. */}
             <div
-              className={`flex shrink-0 items-center gap-2 transition-all duration-300 ease-[var(--ease-out-soft)] ${
+              className={`flex shrink-0 items-center gap-4 transition-all duration-300 ease-[var(--ease-out-soft)] ${
                 pastHero
                   ? 'opacity-100 translate-y-0 pointer-events-auto'
                   : 'opacity-0 -translate-y-1 pointer-events-none'
               }`}
             >
+              {/* Plain text, not a second control. `min-h-11` matches the sm
+                  Button's tap target so the two sit on one optical line, and the
+                  colour pair is the muted-link convention used elsewhere. The
+                  `gap-4` above is the only spacing — nothing here changes the
+                  bar's dimensions. It shares the group's reveal, so it arrives
+                  with the action rather than ahead of it. */}
+              <a
+                href="https://thinq.co/blog/"
+                className="inline-flex min-h-11 items-center px-2 text-sm font-medium text-fg-muted transition-colors hover:text-fg"
+              >
+                Blog
+              </a>
+
               <Button
                 type="button"
                 onClick={() => {
