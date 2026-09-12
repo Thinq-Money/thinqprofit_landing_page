@@ -70,6 +70,32 @@ const NO_GROUND = { r: 0, g: 0, b: 0, alpha: 0 }
 const LIGHT_INK = '#050505'
 
 /**
+ * How far favicon.ico's gradient is turned down. Ground stays transparent.
+ *
+ * The .ico is the fallback for every context that parses no HTML — a raw
+ * /sitemap.xml, /robots.txt, legacy clients — so `media` on the <link> tags
+ * never reaches it and ONE image has to survive every ground at once. Neither
+ * end of the palette does, measured against the three that actually occur:
+ *
+ *   ink       Chrome dark strip   Chrome light strip   Safari white
+ *   #050505          1.27:1              15.55:1          20.38:1
+ *   #e4e4e7         12.69:1               1.03:1           1.27:1
+ *
+ * LIGHT_INK vanished on a dark strip — that is why /sitemap.xml showed a black
+ * mark on black — and the silver gradient vanishes on a light one.
+ *
+ * Rather than ink the mark flat, every gradient STOP is scaled by this factor.
+ * The gradient keeps its shape, so the mark still reads as brushed metal with
+ * light running across it; only its range moves, from #a0a0a5..#ffffff down to
+ * #636366..#9e9e9e. Measured at 0.62: 6.01:1 dark, 3.82:1 light, 5.01:1 white.
+ *
+ * Higher is brighter on a dark strip and worse on a light one — 0.74 drops the
+ * light strip to 2.84:1, which is the point it stops being readable. Lower is
+ * flatter and loses the metal. 0.62 is the widest margin on the worst ground.
+ */
+const ICO_DIM = 0.62
+
+/**
  * Repaints the mark a single flat colour.
  *
  * The mark is drawn with two `linearGradient`s referenced as `url(#r)` and
@@ -168,6 +194,23 @@ async function tile(svg, size, ground, ink) {
 }
 
 /**
+ * The same artwork with every gradient stop scaled toward black.
+ *
+ * A sibling of `inked` above, and the reason it is not `inked` itself: inking
+ * replaces the gradient references with one flat colour, which would throw away
+ * the metal. This rewrites the stops instead, so the gradient survives with its
+ * relative light and shade intact and only its overall range moves. See ICO_DIM.
+ */
+function dimmed(svg, factor) {
+  return svg.toString().replace(/stop-color="#([0-9a-fA-F]{6})"/g, (_, hex) => {
+    const channels = [0, 2, 4].map((i) =>
+      Math.max(0, Math.min(255, Math.round(parseInt(hex.slice(i, i + 2), 16) * factor))),
+    )
+    return `stop-color="#${channels.map((v) => v.toString(16).padStart(2, '0')).join('')}"`
+  })
+}
+
+/**
  * Packs PNGs into an .ico.
  *
  * Written by hand because sharp cannot emit ICO and this needs no dependency:
@@ -248,7 +291,12 @@ const forIco = []
 for (const target of TARGETS) {
   const data = await tile(svg, target.size, target.ground, target.ink)
   await writeFile(path.join(PUBLIC, target.file), data)
-  if (target.ico) forIco.push({ size: target.size, data })
+  // The .ico gets the dimmed gradient on the same transparent ground, so `data`
+  // above — the PNG that ships and that index.html links for a light strip — is
+  // written unchanged. Same `tile`, same scale; only the artwork differs.
+  if (target.ico) {
+    forIco.push({ size: target.size, data: await tile(dimmed(svg, ICO_DIM), target.size, NO_GROUND) })
+  }
   console.log(`favicons: ${target.file.padEnd(28)} ${String(data.length).padStart(6)} bytes`)
 }
 
