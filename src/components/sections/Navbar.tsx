@@ -1,9 +1,10 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import Button from '../ui/Button'
 import Container from '../ui/Container'
 import ThinqMark from '../ui/ThinqMark'
 import { RAIL } from '../../lib/layout'
 import { signupLabel, wordmark, wordmarkAlt } from '../../data/nav'
+import { acknowledgeBlogPosts, checkForNewBlogPosts } from '../../lib/blogNotifications'
 
 /**
  * Bar height. Taller from `xl` up: at a 1344–1664px content width a 64px bar
@@ -36,6 +37,50 @@ const BAR_HEIGHT = 'h-16 xl:h-20'
 export default function Navbar() {
   const [scrolled, setScrolled] = useState(false)
   const [pastHero, setPastHero] = useState(false)
+
+  /*
+   * Posts published since this browser last opened the Blog — see
+   * lib/blogNotifications.ts for where the number comes from.
+   *
+   * It starts at 0, and that is load-bearing rather than a tidy default. This
+   * bar is in the prerendered HTML, which carries no badge; React 19 treats a
+   * mismatched tree as unrecoverable and re-renders the entire page on the
+   * client, which is the one thing the prerender exists to prevent. So the
+   * first client render must produce exactly what is on disk — no badge — and
+   * the count may only arrive afterwards, from the effect below. Nothing here
+   * reads storage or the network during render.
+   */
+  const [newPostCount, setNewPostCount] = useState(0)
+  /*
+   * The list the count was derived from, held in a ref because clicking Blog
+   * must acknowledge it without that list being a render input. `null` until
+   * the fetch lands — and if it never lands, acknowledging is a no-op rather
+   * than a write of nothing over a good baseline.
+   */
+  const knownPosts = useRef<string[] | null>(null)
+
+  /* One check per load of this bar. No polling: a reader who leaves the tab
+     open is not owed a live counter, and the blog publishes on human
+     timescales. */
+  useEffect(() => {
+    let cancelled = false
+    checkForNewBlogPosts().then((snapshot) => {
+      if (cancelled) return
+      knownPosts.current = snapshot.urls
+      setNewPostCount(snapshot.newCount)
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  /* Opening the Blog acknowledges everything currently published. Runs on
+     `click` and on `auxclick` so a middle-click into a background tab counts
+     too — that reader has seen the list just as much as one who navigated. */
+  const acknowledgeBlog = () => {
+    acknowledgeBlogPosts(knownPosts.current)
+    setNewPostCount(0)
+  }
 
   /* Border + blur once the page moves (~12px), and track when the reader has
      scrolled past the hero — which is what un-hides the action below. */
@@ -128,40 +173,89 @@ export default function Navbar() {
               </span>
             </a>
 
-            {/* The action, revealed only once the hero's own copy of it has
-                scrolled away — two live "Join the waitlist" controls on screen at
-                once is one ask presented as two. */}
-            <div
-              className={`flex shrink-0 items-center gap-4 transition-all duration-300 ease-[var(--ease-out-soft)] ${
-                pastHero
-                  ? 'opacity-100 translate-y-0 pointer-events-auto'
-                  : 'opacity-0 -translate-y-1 pointer-events-none'
-              }`}
-            >
+            {/* The right-side group. It no longer carries the reveal — the
+                action inside it does.
+
+                The reveal exists because two live "Join the waitlist" controls
+                on screen at once is one ask presented as two, so the bar's copy
+                waits until the hero's has scrolled away. That reasoning is
+                about the ACTION and never applied to the Blog link, which was
+                only fading with it because it happened to share the wrapper.
+                The cost was that the one destination on the site was invisible
+                for the whole first screen — the exact moment a reader is
+                deciding whether there is anything here besides a form.
+
+                So the group is now plain layout, and the transition moved one
+                level in, onto the button alone. `gap-4` is still the only
+                spacing between the two, and the hidden button still holds its
+                width, so Blog does not move when the action arrives. */}
+            <div className="flex shrink-0 items-center gap-4">
               {/* Plain text, not a second control. `min-h-11` matches the sm
                   Button's tap target so the two sit on one optical line, and the
-                  colour pair is the muted-link convention used elsewhere. The
-                  `gap-4` above is the only spacing — nothing here changes the
-                  bar's dimensions. It shares the group's reveal, so it arrives
-                  with the action rather than ahead of it. */}
+                  colour pair is the muted-link convention used elsewhere.
+                  Nothing here changes the bar's dimensions. */}
               <a
                 href="https://thinq.co/blog/"
+                onClick={acknowledgeBlog}
+                onAuxClick={acknowledgeBlog}
                 className="inline-flex min-h-11 items-center px-2 text-sm font-medium text-fg-muted transition-colors hover:text-fg"
               >
                 Blog
+                {newPostCount > 0 ? (
+                  <>
+                    {/* The count itself, and nothing louder than it needs to
+                        be. `bg-fg/10` is the well Button already uses for its
+                        trailing glyph and the footer for its disclosure box, so
+                        this introduces no colour: it is the same white at 10%
+                        the bar is already built from. Copper is reserved for
+                        the one action — DESIGN.md §4 — and a notification is
+                        not an action.
+
+                        `h-4` inside a `min-h-11` link cannot change the bar's
+                        height, and `min-w-[16px]` with `tabular-nums` keeps 1,
+                        7 and 9 exactly the same width so the count changing
+                        never shifts the button beside it. Past 9 it becomes
+                        9+ rather than growing indefinitely. */}
+                    <span
+                      aria-hidden="true"
+                      className="ml-1.5 grid h-4 min-w-[16px] shrink-0 place-items-center rounded-full bg-fg/10 px-1 text-[10px] font-semibold tabular-nums text-fg"
+                    >
+                      {newPostCount > 9 ? '9+' : newPostCount}
+                    </span>
+                    {/* A bare "3" beside "Blog" is ambiguous read aloud, and
+                        the visible chip truncates past 9 where speech should
+                        not. This carries the real number in words and leaves
+                        the link's accessible name as "Blog, 3 new posts". */}
+                    <span className="sr-only">
+                      {newPostCount === 1 ? '1 new post' : `${newPostCount} new posts`}
+                    </span>
+                  </>
+                ) : null}
               </a>
 
-              <Button
-                type="button"
-                onClick={() => {
-                  window.scrollTo({ top: 0, behavior: 'smooth' })
-                  window.dispatchEvent(new CustomEvent('open-waitlist-modal'))
-                }}
-                variant="primary"
-                size="sm"
+              {/* `flex`, not a bare block: Button's root is `inline-flex`, and
+                  an inline child in a block wrapper picks up the line box's
+                  leading — a few stray pixels under a control that is measured
+                  against the bar's centre. */}
+              <div
+                className={`flex transition-all duration-300 ease-[var(--ease-out-soft)] ${
+                  pastHero
+                    ? 'opacity-100 translate-y-0 pointer-events-auto'
+                    : 'opacity-0 -translate-y-1 pointer-events-none'
+                }`}
               >
-                {signupLabel}
-              </Button>
+                <Button
+                  type="button"
+                  onClick={() => {
+                    window.scrollTo({ top: 0, behavior: 'smooth' })
+                    window.dispatchEvent(new CustomEvent('open-waitlist-modal'))
+                  }}
+                  variant="primary"
+                  size="sm"
+                >
+                  {signupLabel}
+                </Button>
+              </div>
             </div>
           </div>
         </div>
