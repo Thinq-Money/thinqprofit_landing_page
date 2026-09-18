@@ -5,19 +5,39 @@ import { GUTTER_X, RAIL, SECTION_Y } from '../../lib/layout'
 import type { ImageSources, VideoSources } from './MediaBackdrop'
 
 /**
- * Section heights. `epic` and `tall` both resolve to the full viewport — they
- * are kept as distinct names because they still pick the type step below
+ * Section heights.
+ *
+ * `epic` is the full viewport at `md` and up, unchanged.
+ *
+ * `tall` is the full viewport too, but only up to a point: `min(100svh,900px)`
+ * stops the minimum growing once the display is taller than 900px. The two are
+ * still distinct names because they pick the type step below
  * (`step = scale ?? height`), and because unequal heights are the first thing to
  * reach for if the full-screen rhythm is relaxed.
+ *
+ * ── Why `tall` is capped ───────────────────────────────────────────────────
+ *
+ * The section is a flex column whose inner wrapper is `flex-1` under
+ * `ANCHOR.center` (`md:justify-center`), so any height the copy does not use is
+ * split evenly above and below it. Tied to `100svh` that surplus has no ceiling:
+ * measured, the gap between this section's last line and the heading of the one
+ * after it came to half the viewport height minus 138px — 312px on a 900px-tall
+ * laptop and 662px at 1600px, growing forever with the display. Past roughly
+ * 900px the extra space stops reading as composition and starts reading as the
+ * page having ended. The cap holds every taller screen at the 900px result.
+ *
+ * It is the MINIMUM that is capped, not the height. Copy taller than 900px still
+ * pushes the section open, which is what keeps this safe — see below.
  *
  * `min-h`, never a fixed height: the section carries `overflow-hidden` so the
  * scrim's overscan cannot escape, which means a hard height would silently clip
  * any section whose copy outgrew the frame. `svh` keeps mobile browser chrome
- * out of it. Below 768px every section is content-sized instead.
+ * out of it. Below 768px `min-h-0` leaves every section content-sized, so none
+ * of this — the viewport height or the cap — applies to a phone at all.
  */
 const HEIGHT = {
   epic: 'min-h-0 md:min-h-svh',
-  tall: 'min-h-0 md:min-h-svh',
+  tall: 'min-h-0 md:min-h-[min(100svh,900px)]',
   mid: 'min-h-0 md:min-h-[65vh] py-8 md:py-12',
   short: 'min-h-0 md:min-h-[50vh] py-6 md:py-8',
 } as const
