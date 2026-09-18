@@ -74,6 +74,34 @@ function canUseDom(): boolean {
 }
 
 /**
+ * Can this browser actually PERSIST an acknowledgement?
+ *
+ * Distinct from "is there a record", and the two must not be confused. An
+ * absent or corrupt record means a reader who has acknowledged nothing, and
+ * they should see the full count. Storage that cannot be WRITTEN means the
+ * count can never be dismissed: the reader clicks, the badge clears for that
+ * render, `writeBaseline` silently fails, and it is back on the next load —
+ * for ever. A badge with no working dismissal is worse than no badge.
+ *
+ * It has to be a write probe. A read can succeed where a write cannot — a full
+ * quota, or a private window that hands back an empty store and refuses
+ * `setItem` — and `setItem` is the operation acknowledgement depends on. The
+ * probe uses its own key and removes it immediately, so it never touches the
+ * acknowledgement record and leaves nothing behind.
+ */
+function canPersist(): boolean {
+  if (!canUseDom()) return false
+  const probe = `${STORAGE_KEY}__probe`
+  try {
+    window.localStorage.setItem(probe, '1')
+    window.localStorage.removeItem(probe)
+    return true
+  } catch {
+    return false
+  }
+}
+
+/**
  * The reader's acknowledged set, or `null` when there isn't a usable one.
  *
  * `null` covers every unusable case identically — key absent, storage disabled,
@@ -230,24 +258,34 @@ async function fetchArticleUrls(): Promise<string[] | null> {
 }
 
 /**
- * Resolves what the badge should show.
+ * Resolves what the badge should show: published articles MINUS acknowledged
+ * ones. Nothing else feeds it.
  *
- * On a browser with no baseline this SEEDS one from whatever is published and
- * reports 0. A first-time reader is not shown a pile of twenty posts they have
- * never had the chance to read — the count only ever describes what appeared
- * after they arrived. The seed is written only on a successful fetch, so a
- * first visit during an outage stays a first visit rather than committing an
- * empty baseline and announcing the whole catalogue on the next load.
+ * A browser with no stored record has acknowledged NOTHING, so every published
+ * post counts. This used to seed the record from the current sitemap and report
+ * 0, on the reasoning that a first-time reader should only be told about what
+ * appeared after they arrived. That was wrong: five posts already up are five
+ * posts this reader has not read, and the badge is a "there is something over
+ * there" signal rather than a log of what was published while they happened to
+ * be watching.
+ *
+ * The count therefore falls only when the reader CLICKS. A reload, a closed
+ * tab, a private window or a cleared store never acknowledges anything, and a
+ * fresh device starts at the full catalogue by design.
  */
 export async function checkForNewBlogPosts(): Promise<BlogSnapshot> {
   const urls = await fetchArticleUrls()
   if (!urls) return { urls: null, newCount: 0 }
 
-  const baseline = readBaseline()
-  if (!baseline) {
-    writeBaseline(urls)
-    return { urls, newCount: 0 }
-  }
+  // Nothing to show where an acknowledgement cannot be stored — see canPersist.
+  // This is the ONLY case that suppresses the badge on a successful fetch; a
+  // missing or corrupt record is a reader with nothing acknowledged, not this.
+  if (!canPersist()) return { urls, newCount: 0 }
+
+  // No usable record — absent, unreadable, or from another format — means an
+  // empty acknowledged set, never a seed. `readBaseline` already collapses all
+  // of those into `null`, so there is one path for all of them.
+  const baseline = readBaseline() ?? new Set<string>()
 
   let newCount = 0
   for (const url of urls) if (!baseline.has(url)) newCount += 1
