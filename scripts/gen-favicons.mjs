@@ -55,6 +55,64 @@ const PUBLIC = path.resolve(import.meta.dirname, '../public')
 // generated from it, cropped and scaled to match the PNGs.
 const SOURCE = path.resolve(import.meta.dirname, 'assets/thinq-mark.svg')
 
+/**
+ * The official logo, and the source of truth for every RASTER icon.
+ *
+ * `thinq-mark.svg` above is the bare mark on transparency with a six-stop metal
+ * ramp; this is the delivered brand file — 512x512, a full-bleed #000000 plate,
+ * the mark drawn flat in #FDFDFD/#FCFCFC, and no gradient anywhere. Where the
+ * two disagree the logo wins, and they do disagree slightly: the logo's ring
+ * mid-radius is 5.47 against the mark's 5.8, and its outer dot sits at 20.47
+ * rather than 21, both on the 24-unit grid.
+ *
+ * The split is deliberate rather than an oversight. The two public/*.svg keep
+ * coming from the MARK, because those are what Chrome paints in a tab and they
+ * answer `prefers-color-scheme` by being transparent and two-toned. The logo
+ * carries its own plate, so it cannot do that — and it does not need to, because
+ * the things it feeds (Google Search, Safari, iOS, Android, /favicon.ico) all
+ * composite a raster onto a ground we do not choose.
+ */
+const LOGO_SOURCE = path.resolve(import.meta.dirname, 'assets/thinq-logo-512.svg')
+
+/**
+ * The one adjustment made to the official logo, and it is positioning only.
+ *
+ * Google Search draws favicons in a CIRCLE, and the logo as delivered does not
+ * survive that crop: measured on the 512 canvas, the ring reaches 230.5px from
+ * centre and the inner dot 156.4px — both inside the 256px inscribed circle —
+ * but the outer dot reaches 281.0px and is sliced into a wedge. The mark loses
+ * a third of its identity in every Google result.
+ *
+ * So the three mark elements are scaled and recentred AS A GROUP onto the
+ * centre of their own minimum enclosing circle — 255.75px radius, sitting at
+ * (273.77, 273.93) rather than at the canvas centre. The translate is derived
+ * from the scale rather than fixed: `256 - centre x scale` on both axes, which
+ * is what keeps the mark circle-centred at any scale instead of scaling about
+ * the canvas origin and drifting.
+ *
+ * ── Why 0.90 and not tighter ───────────────────────────────────────────────
+ *
+ * Fitting the enclosing circle exactly to the crop leaves no air, and four
+ * scales were rendered and measured at 96x96 before this one was chosen:
+ *
+ *   scale    clearance   ink fill   ring stroke @28px
+ *   0.9697     1.33px      79.2%        2.47px
+ *   0.92       4.02px      75.0%        2.35px
+ *   0.90       4.84px      72.9%        2.30px   <- this one
+ *   0.88       6.07px      70.8%        2.24px
+ *
+ * 0.9697 was the first fit and read as touching the border. 0.92 is the largest
+ * that clears 4px, but only by 0.02px — no headroom once anti-aliasing rounds a
+ * fraction differently at another size. 0.90 buys real margin for a quarter of
+ * a pixel of ring at SERP size, which is not a visible trade.
+ *
+ * Being a uniform similarity transform, none of this alters the artwork: stroke
+ * weight, both dot radii, their spacing and all colours come through unchanged.
+ * The plate is NOT transformed — it stays full-bleed, which keeps the corners
+ * black after the crop.
+ */
+const LOGO_FIT = { scale: 0.9, dx: 9.61, dy: 9.46 }
+
 /** `--color-bg`. Must track src/index.css and the `theme-color` meta. */
 const BRAND_GROUND = { r: 5, g: 5, b: 5, alpha: 1 }
 
@@ -70,30 +128,18 @@ const NO_GROUND = { r: 0, g: 0, b: 0, alpha: 0 }
 const LIGHT_INK = '#050505'
 
 /**
- * How far favicon.ico's gradient is turned down. Ground stays transparent.
+ * favicon.ico is no longer dimmed, and the reason it once was is now moot.
  *
- * The .ico is the fallback for every context that parses no HTML — a raw
- * /sitemap.xml, /robots.txt, legacy clients — so `media` on the <link> tags
- * never reaches it and ONE image has to survive every ground at once. Neither
- * end of the palette does, measured against the three that actually occur:
+ * The .ico used to be packed from the bare mark on TRANSPARENCY, so one image
+ * had to survive a dark tab strip, a light one and Safari's white at once.
+ * Neither end of the palette managed it, and the compromise was to scale every
+ * gradient stop to 0.62 — brushed metal turned down to a mid grey that measured
+ * 6.01:1 on dark and 3.82:1 on light, and looked soft on both.
  *
- *   ink       Chrome dark strip   Chrome light strip   Safari white
- *   #050505          1.27:1              15.55:1          20.38:1
- *   #e4e4e7         12.69:1               1.03:1           1.27:1
- *
- * LIGHT_INK vanished on a dark strip — that is why /sitemap.xml showed a black
- * mark on black — and the silver gradient vanishes on a light one.
- *
- * Rather than ink the mark flat, every gradient STOP is scaled by this factor.
- * The gradient keeps its shape, so the mark still reads as brushed metal with
- * light running across it; only its range moves, from #a0a0a5..#ffffff down to
- * #636366..#9e9e9e. Measured at 0.62: 6.01:1 dark, 3.82:1 light, 5.01:1 white.
- *
- * Higher is brighter on a dark strip and worse on a light one — 0.74 drops the
- * light strip to 2.84:1, which is the point it stops being readable. Lower is
- * flatter and loses the metal. 0.62 is the widest margin on the worst ground.
+ * The .ico is now packed from the official logo, which brings its own opaque
+ * #000000 plate. There is no ground left to lose against, so the artwork ships
+ * at full brightness: flat #FDFDFD on black, identical on every strip.
  */
-const ICO_DIM = 0.62
 
 /**
  * Repaints the mark a single flat colour.
@@ -139,22 +185,45 @@ const TIGHT_VIEWBOX = '1.85 1.85 20.4 20.4'
  * the input those platforms actually ask for. The tab icons have no ground —
  * see the note at the top of this file for what that costs on a light strip.
  */
-const TARGETS = [
-  // Light strip: the mark inked near-black. These keep the unsuffixed names
-  // because favicon.ico is packed from them, and the .ico is the unconditional
-  // fallback for anything that ignores `media` — Safari included, whose ground
-  // is white in both of its modes.
-  { file: 'favicon-16x16.png', size: 16, ico: true, ground: NO_GROUND, ink: LIGHT_INK },
-  { file: 'favicon-32x32.png', size: 32, ico: true, ground: NO_GROUND, ink: LIGHT_INK },
-  { file: 'favicon-48x48.png', size: 48, ico: true, ground: NO_GROUND, ink: LIGHT_INK },
-  // Dark strip: the mark's own silver-to-white gradient, which is what reads as
-  // the white logo. No `ink`, so the artwork is rasterised as drawn.
+/**
+ * Rasters cut from the OFFICIAL LOGO.
+ *
+ * Everything that is handed to something which composites it onto a ground we
+ * do not control: Google Search, Safari, iOS, Android, and /favicon.ico. They
+ * all get the delivered brand file, plate included, at full brightness.
+ *
+ * 96 is here because Google asks for it. Its documented guidance is a square
+ * raster "larger than 48x48px", and the largest this site declared was 32 — so
+ * Google was upscaling a 32px source into a result card. It is in the .ico as
+ * well, so the same pixels are reachable with or without the <link>.
+ */
+const LOGO_TARGETS = [
+  { file: 'favicon-16x16.png', size: 16, ico: true },
+  { file: 'favicon-32x32.png', size: 32, ico: true },
+  { file: 'favicon-48x48.png', size: 48, ico: true },
+  { file: 'favicon-96x96.png', size: 96, ico: true },
+  { file: 'apple-touch-icon.png', size: 180 },
+  { file: 'android-chrome-192x192.png', size: 192 },
+  { file: 'android-chrome-512x512.png', size: 512 },
+]
+
+/**
+ * Rasters still cut from the MARK, and deliberately so.
+ *
+ * These are the dark-strip halves of the `media`-gated pairs in index.html.
+ * Their light-strip partners are the unsuffixed files above, which now carry
+ * the logo's own black plate and therefore need no inking — a plate reads on
+ * either strip. Chrome takes the SVG and never fetches either of these
+ * (measured: 18 runs, real Chrome, light and dark, only the SVG is requested),
+ * so they exist for engines that ignore SVG favicons but do honour `media`.
+ *
+ * Left on the mark because this task was scoped to the raster icons Google and
+ * friends consume; changing these would change a tab, which it was not.
+ */
+const MARK_TARGETS = [
   { file: 'favicon-16x16-dark.png', size: 16, ground: NO_GROUND },
   { file: 'favicon-32x32-dark.png', size: 32, ground: NO_GROUND },
   { file: 'favicon-48x48-dark.png', size: 48, ground: NO_GROUND },
-  { file: 'apple-touch-icon.png', size: 180, ground: BRAND_GROUND },
-  { file: 'android-chrome-192x192.png', size: 192, ground: BRAND_GROUND },
-  { file: 'android-chrome-512x512.png', size: 512, ground: BRAND_GROUND },
 ]
 
 /**
@@ -193,22 +262,6 @@ async function tile(svg, size, ground, ink) {
     .toBuffer()
 }
 
-/**
- * The same artwork with every gradient stop scaled toward black.
- *
- * A sibling of `inked` above, and the reason it is not `inked` itself: inking
- * replaces the gradient references with one flat colour, which would throw away
- * the metal. This rewrites the stops instead, so the gradient survives with its
- * relative light and shade intact and only its overall range moves. See ICO_DIM.
- */
-function dimmed(svg, factor) {
-  return svg.toString().replace(/stop-color="#([0-9a-fA-F]{6})"/g, (_, hex) => {
-    const channels = [0, 2, 4].map((i) =>
-      Math.max(0, Math.min(255, Math.round(parseInt(hex.slice(i, i + 2), 16) * factor))),
-    )
-    return `stop-color="#${channels.map((v) => v.toString(16).padStart(2, '0')).join('')}"`
-  })
-}
 
 /**
  * Packs PNGs into an .ico.
@@ -286,22 +339,58 @@ ${inner
 `
 }
 
+/**
+ * The official logo, positioned for the circular crop, rasterised once.
+ *
+ * ONE master render at 2048 feeds every size. Rasterising the vector separately
+ * per size would let each one land on the pixel grid differently, and the .ico
+ * entries would then not be the same image as the standalone PNGs — which is
+ * exactly the thing that has to stay provable here.
+ */
+const logo = await readFile(LOGO_SOURCE)
+const positioned = logo
+  .toString()
+  // The plate is the first <path>; the three mark elements follow it and are
+  // the only things transformed.
+  .replace(
+    /(<path[^>]*fill="#000000"[^>]*transform="translate\(0,0\)"[^>]*\/>)/,
+    `$1<g transform="translate(${LOGO_FIT.dx},${LOGO_FIT.dy}) scale(${LOGO_FIT.scale})">`,
+  )
+  .replace('</svg>', '</g></svg>')
+
+const logoMaster = await sharp(Buffer.from(positioned), { density: 288 })
+  .resize(2048, 2048)
+  .png()
+  .toBuffer()
+
+/** One size off the master. Flattened: these grounds are never transparent. */
+const logoTile = (size) =>
+  sharp(logoMaster)
+    .resize(size, size, { kernel: 'lanczos3' })
+    .flatten({ background: '#000000' })
+    .png({ compressionLevel: 9 })
+    .toBuffer()
+
 const forIco = []
 
-for (const target of TARGETS) {
+for (const target of LOGO_TARGETS) {
+  const data = await logoTile(target.size)
+  await writeFile(path.join(PUBLIC, target.file), data)
+  // The .ico entry is the SAME buffer the standalone PNG was written from, not
+  // a second render of it. That is what makes "the .ico carries no different
+  // logo" a fact about the bytes rather than a claim about the process.
+  if (target.ico) forIco.push({ size: target.size, data })
+  console.log(`favicons: ${target.file.padEnd(28)} ${String(data.length).padStart(6)} bytes  (official logo)`)
+}
+
+for (const target of MARK_TARGETS) {
   const data = await tile(svg, target.size, target.ground, target.ink)
   await writeFile(path.join(PUBLIC, target.file), data)
-  // The .ico gets the dimmed gradient on the same transparent ground, so `data`
-  // above — the PNG that ships and that index.html links for a light strip — is
-  // written unchanged. Same `tile`, same scale; only the artwork differs.
-  if (target.ico) {
-    forIco.push({ size: target.size, data: await tile(dimmed(svg, ICO_DIM), target.size, NO_GROUND) })
-  }
-  console.log(`favicons: ${target.file.padEnd(28)} ${String(data.length).padStart(6)} bytes`)
+  console.log(`favicons: ${target.file.padEnd(28)} ${String(data.length).padStart(6)} bytes  (mark)`)
 }
 
 await writeFile(path.join(PUBLIC, 'favicon.ico'), ico(forIco))
-console.log(`favicons: favicon.ico                  ${ico(forIco).length} bytes (16/32/48)`)
+console.log(`favicons: favicon.ico                  ${ico(forIco).length} bytes (16/32/48/96, official logo)`)
 
 // The generator dumped its whole output directory into public/ as well. Every
 // file in it is a byte-identical duplicate of one at the root, and public/ ships
