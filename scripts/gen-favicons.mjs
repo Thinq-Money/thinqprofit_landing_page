@@ -78,43 +78,20 @@ const LOGO_SOURCE = path.resolve(import.meta.dirname, 'assets/thinq-logo-512.svg
  * The one adjustment made to the official logo, and it is positioning only.
  *
  * Google Search draws favicons in a CIRCLE, and the logo as delivered does not
- * survive that crop: measured on the 512 canvas, the ring reaches 230.5px from
- * centre and the inner dot 156.4px — both inside the 256px inscribed circle —
- * but the outer dot reaches 281.0px and is sliced into a wedge. The mark loses
- * a third of its identity in every Google result.
+ * survive that crop — its outer dot falls outside and is sliced into a wedge.
  *
  * So the three mark elements are scaled and recentred AS A GROUP onto the
- * centre of their own minimum enclosing circle — 255.75px radius, sitting at
- * (273.77, 273.93) rather than at the canvas centre. The translate is derived
- * from the scale rather than fixed: `256 - centre x scale` on both axes, which
- * is what keeps the mark circle-centred at any scale instead of scaling about
- * the canvas origin and drifting.
+ * centre of their own minimum enclosing circle, NOT their bounding box: the
+ * mark runs diagonally, and bbox-centring is what pushes the outer dot out.
+ * The translate is derived from the scale (`256 - centre x scale` on both
+ * axes), so the mark stays circle-centred rather than drifting. At 0.90 the
+ * nearest element clears the crop by about 4.8px on a 96x96 render.
  *
- * ── Why 0.90 and not tighter ───────────────────────────────────────────────
- *
- * Fitting the enclosing circle exactly to the crop leaves no air, and four
- * scales were rendered and measured at 96x96 before this one was chosen:
- *
- *   scale    clearance   ink fill   ring stroke @28px
- *   0.9697     1.33px      79.2%        2.47px
- *   0.92       4.02px      75.0%        2.35px
- *   0.90       4.84px      72.9%        2.30px   <- this one
- *   0.88       6.07px      70.8%        2.24px
- *
- * 0.9697 was the first fit and read as touching the border. 0.92 is the largest
- * that clears 4px, but only by 0.02px — no headroom once anti-aliasing rounds a
- * fraction differently at another size. 0.90 buys real margin for a quarter of
- * a pixel of ring at SERP size, which is not a visible trade.
- *
- * Being a uniform similarity transform, none of this alters the artwork: stroke
- * weight, both dot radii, their spacing and all colours come through unchanged.
- * The plate is NOT transformed — it stays full-bleed, which keeps the corners
- * black after the crop.
+ * Being a uniform similarity transform, this cannot alter the artwork: stroke
+ * weight, dot radii, spacing and colours come through unchanged. The plate is
+ * NOT transformed — it stays full-bleed, which keeps the corners black.
  */
 const LOGO_FIT = { scale: 0.9, dx: 9.61, dy: 9.46 }
-
-/** `--color-bg`. Must track src/index.css and the `theme-color` meta. */
-const BRAND_GROUND = { r: 5, g: 5, b: 5, alpha: 1 }
 
 /** No ground at all — the tab icons composite onto whatever the browser draws. */
 const NO_GROUND = { r: 0, g: 0, b: 0, alpha: 0 }
@@ -126,20 +103,6 @@ const NO_GROUND = { r: 0, g: 0, b: 0, alpha: 0 }
  * itself, rather than a flat #000 that reads harsher than the brand.
  */
 const LIGHT_INK = '#050505'
-
-/**
- * favicon.ico is no longer dimmed, and the reason it once was is now moot.
- *
- * The .ico used to be packed from the bare mark on TRANSPARENCY, so one image
- * had to survive a dark tab strip, a light one and Safari's white at once.
- * Neither end of the palette managed it, and the compromise was to scale every
- * gradient stop to 0.62 — brushed metal turned down to a mid grey that measured
- * 6.01:1 on dark and 3.82:1 on light, and looked soft on both.
- *
- * The .ico is now packed from the official logo, which brings its own opaque
- * #000000 plate. There is no ground left to lose against, so the artwork ships
- * at full brightness: flat #FDFDFD on black, identical on every strip.
- */
 
 /**
  * Repaints the mark a single flat colour.
@@ -177,14 +140,6 @@ const MARK_SCALE = 0.92
  */
 const TIGHT_VIEWBOX = '1.85 1.85 20.4 20.4'
 
-/**
- * PNG outputs. `ico` marks the sizes that also go into favicon.ico.
- *
- * The launcher icons keep the brand ground and stay square: iOS and Android
- * apply their own mask and their own composite, so an opaque square tile is
- * the input those platforms actually ask for. The tab icons have no ground —
- * see the note at the top of this file for what that costs on a light strip.
- */
 /**
  * Rasters cut from the OFFICIAL LOGO.
  *
@@ -261,7 +216,6 @@ async function tile(svg, size, ground, ink) {
     .png({ compressionLevel: 9 })
     .toBuffer()
 }
-
 
 /**
  * Packs PNGs into an .ico.

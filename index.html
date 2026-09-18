@@ -73,20 +73,15 @@
       href="/favicon-16x16.png?v=14"
       media="(prefers-color-scheme: light)"
     />
-    <!-- The one raster Google is meant to take, and the only <link> here with no
-         `media`. Google supports BMP/GIF/ICO/PNG/JPEG/PPM/TIFF but NOT SVG, so
-         the two SVGs above are invisible to it, and it documents no handling of
-         `media` at all — which left it choosing between 16/32px PNGs behind
-         media queries and the undeclared /favicon.ico. Its guidance asks for a
-         square raster larger than 48x48; this is 96.
+    <!-- The one raster for Google, and the only <link> here without `media`.
+         Google reads no SVG and documents no handling of `media`, so the tags
+         above leave it nothing but 16/32px PNGs behind media queries; its
+         guidance asks for a square raster larger than 48x48.
 
-         Measured before adding it, because the note above warns that an
-         unconditional raster link once stole the tab from the SVG: real Chrome,
-         fresh profile, 3 runs per case, server-side request log. Light fetched
-         only favicon-light.svg, dark only favicon-dark.svg, 18 of 18 runs. This
-         file was never requested by Chrome in any of them — it cannot paint
-         what it does not download. The earlier regression was an .ico, which
-         Chrome ranks differently; a sized PNG loses to an SVG. -->
+         This is NOT the tag the note above forbids — that was an .ico, which
+         Chrome ranks above an SVG. Measured in real Chrome before adding it:
+         light took favicon-light.svg, dark took favicon-dark.svg, 18/18 runs,
+         and this file was never fetched. -->
     <link rel="icon" type="image/png" sizes="96x96" href="/favicon-96x96.png?v=14" />
     <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png?v=14" />
     <link rel="manifest" href="/site.webmanifest?v=14" />
