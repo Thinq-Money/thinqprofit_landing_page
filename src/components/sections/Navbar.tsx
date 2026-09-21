@@ -200,7 +200,7 @@ export default function Navbar() {
                 onAuxClick={acknowledgeBlog}
                 className="inline-flex min-h-11 items-center px-2 text-sm font-medium text-fg-muted transition-colors hover:text-fg"
               >
-                Blogs
+                Blog
                 {newPostCount > 0 ? (
                   <>
                     {/* The count itself, and nothing louder than it needs to
@@ -225,7 +225,7 @@ export default function Navbar() {
                     {/* A bare "3" beside "Blog" is ambiguous read aloud, and
                         the visible chip truncates past 9 where speech should
                         not. This carries the real number in words and leaves
-                        the link's accessible name as "Blogs, 3 new posts". */}
+                        the link's accessible name as "Blog, 3 new posts". */}
                     <span className="sr-only">
                       {newPostCount === 1 ? '1 new post' : `${newPostCount} new posts`}
                     </span>
