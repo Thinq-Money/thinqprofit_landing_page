@@ -198,7 +198,7 @@ export default function Navbar() {
                 href="https://thinq.co/blog/"
                 onClick={acknowledgeBlog}
                 onAuxClick={acknowledgeBlog}
-                className="inline-flex min-h-11 items-center px-2 text-sm font-medium text-fg-muted transition-colors hover:text-fg"
+                className="inline-flex min-h-11 items-center px-2 text-sm font-bold text-fg-muted transition-colors hover:text-fg"
               >
                 Blog
                 {newPostCount > 0 ? (
